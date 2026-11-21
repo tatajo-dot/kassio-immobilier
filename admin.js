@@ -4,7 +4,7 @@ import { sb, state, esc, toast, errMsg, dateFr, fcfa, publicUrl, FILTRES_BP, cat
 // Navigation en 5 tuiles (icône + texte) : on choisit d'abord le domaine, puis l'écran
 const GROUPES = [
   ['Accueil', [['jour', 'Aujourd’hui']], 'acc'],
-  ['Immobilier', [['traiter', 'À traiter'], ['demandes', 'Demandes et visites'], ['validation', 'Validation'], ['catalogue', 'Toutes les offres'], ['sources', 'Sources automatiques']], 'imm'],
+  ['Immobilier', [['traiter', 'À traiter'], ['demandes', 'Demandes et visites'], ['validation', 'Validation'], ['catalogue', 'Toutes les offres'], ['identites', 'Identités'], ['sources', 'Sources automatiques'], ['erreurs', 'Erreurs']], 'imm'],
   ['Résidents', [['annuaire', 'Nos locataires'], ['express', 'Inviter en série'], ['invitations', 'Codes d’invitation (un par un)'], ['comptes', 'Comptes']], 'res'],
   ['Market', [['annonces', 'Annonces'], ['moderation', 'Signalements']], 'mk'],
   ['Résidences', [['plan', 'Plan résidences et villas'], ['residences', 'Créer / gérer les résidences'], ['villas', 'Créer / gérer les villas']], 'bat'],
@@ -29,6 +29,12 @@ const AIDE = {
   catalogue: ['Toutes les offres du catalogue : pros, offres flash WhatsApp et annonces web.', [
     'Filtrez par source et par état.',
     '« Contact » affiche le numéro de l’annonceur ; « Retirer » enlève une offre du catalogue.']],
+  identites: ['Les pièces d’identité (et RCCM des pros) envoyées par les membres qui publient des offres.', [
+    'Ouvrez chaque document pour le comparer au selfie.',
+    '« Valider » donne le badge Identité vérifiée ; « Refuser » demande un motif envoyé au membre.']],
+  erreurs: ['Les erreurs rencontrées par les membres dans l’appli, remontées automatiquement et regroupées.', [
+    'Une même erreur n’apparaît qu’une fois, avec son nombre d’occurrences.',
+    'Après correction, « Marquer résolue » ; elle revient si elle se reproduit.']],
   sources: ['Les sources qui alimentent le catalogue automatiquement : sites immobiliers et groupes WhatsApp.', [
     'Le scraping tourne seul toutes les 3 heures ; « Lancer maintenant » force un passage.',
     'Les offres flash arrivent dès que la passerelle WhatsApp est connectée aux groupes.']],
@@ -118,8 +124,8 @@ export async function renderAdmin(app, ong) {
   const box = app.querySelector('#adm');
   // téléphone : les étapes d'aide sont repliées (un toucher les déplie) pour voir tout de suite l'écran de travail
   const ao = app.querySelector('.aide-ouvrir'); if (ao) ao.onclick = () => { const s = ao.closest('.aide'), o = s.classList.toggle('ouvert'); ao.setAttribute('aria-expanded', String(o)); };
-  const IMM = ['traiter', 'demandes', 'validation', 'catalogue', 'sources'];
-  if (IMM.includes(ong)) { const m = await import('./admin-biens.js?v=1'); await ({ traiter: m.traiter, demandes: m.demandes, validation: m.validation, catalogue: m.catalogueAdmin, sources: m.sources }[ong])(box); }
+  const IMM = ['traiter', 'demandes', 'validation', 'catalogue', 'identites', 'sources', 'erreurs'];
+  if (IMM.includes(ong)) { const m = await import('./admin-biens.js?v=1'); await ({ traiter: m.traiter, demandes: m.demandes, validation: m.validation, catalogue: m.catalogueAdmin, identites: m.identites, sources: m.sources, erreurs: m.erreurs }[ong])(box); }
   else await ({ jour, plan, express, stats, invitations, annuaire, comptes, moderation, annonces, contenus, residences, villas, partenaires, avis, parametres }[ong] || stats)(box);
   mobile(app);
   if (!['parametres', 'jour', 'plan', 'express'].includes(ong)) {

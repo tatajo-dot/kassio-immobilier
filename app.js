@@ -148,7 +148,9 @@ const routes = {
   'biens': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'biens', p),
   'bien': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'bien', p),
   'publier-bien': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'publier-bien', p),
-  'mes-biens': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'mes-biens', p)
+  'mes-biens': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'mes-biens', p),
+  'assistant': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'assistant', p),
+  'verification': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'verification', p)
 };
 // Squelettes de chargement à la forme de l'écran qui arrive (affichés seulement si l'attente dépasse 120 ms)
 const SQ = {
@@ -169,7 +171,7 @@ async function router() {
   document.getElementById('nav').hidden = !actif();
   // Espace KASSIO : la barre du haut change (plus de menu résident) pour ne pas confondre les deux menus
   document.body.classList.toggle('mode-admin', name === 'admin' && !!state.profil?.is_admin);
-  const sect = ({ '': 'accueil', annonce: 'market', modifier: 'mes-annonces', bien: 'biens', 'publier-bien': 'biens', 'mes-biens': 'biens' })[name] ?? name;
+  const sect = ({ '': 'accueil', annonce: 'market', modifier: 'mes-annonces', bien: 'biens', 'publier-bien': 'biens', 'mes-biens': 'biens', assistant: 'biens', verification: 'profil' })[name] ?? name;
   document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === sect));
   window.scrollTo(0, 0);
   if (RECUP_TH) return nouveauMdp();
@@ -182,7 +184,7 @@ async function router() {
   let skT = 0;
   if (view.constructor.name === 'AsyncFunction') { const avant = app.firstElementChild;
     skT = setTimeout(() => { if (app.firstElementChild === avant) { app.innerHTML = name === 'admin' ? SQ_DEF : (SQ[name] ?? SQ_DEF); window.dispatchEvent(new Event('kas-squelette')); } }, 120); }
-  try { await view(param); } catch (e) { console.error(e); app.innerHTML = `<div class="card">${esc(errMsg(e))}</div>`; }
+  try { await view(param); } catch (e) { console.error(e); remonter(e?.message || String(e), 'écran ' + name); app.innerHTML = `<div class="card">${esc(errMsg(e))}</div>`; }
   clearTimeout(skT);
   void app.offsetWidth; app.classList.add('page-in');
   if (view !== accueil) majCompteurs(); // l'accueil vient déjà de les mettre à jour
@@ -492,7 +494,7 @@ async function accueil() {
     + petit('#/nouveautes', 'Nouveautés', 'Programmes').replace('class="petit', 'class="petit clign')
     + '</nav>'
     + '<section class="acc-biens"><div class="sec-h"><h2>Biens immobiliers</h2><a href="#/biens">' + (nbBiens ? nbBiens.toLocaleString('fr-FR') + ' offres' : 'Tout voir') + '</a></div>'
-    + '<div class="chips" style="margin:4px 0 12px"><a class="chip" href="#/biens?t=location">Louer</a><a class="chip" href="#/biens?t=vente">Acheter</a><a class="chip" href="#/biens?t=location_courte">Courte durée</a><a class="chip" href="#/publier-bien">+ Publier un bien</a></div>'
+    + '<div class="chips" style="margin:4px 0 12px"><a class="chip" href="#/biens?t=location">Louer</a><a class="chip" href="#/biens?t=vente">Acheter</a><a class="chip" href="#/biens?t=location_courte">Courte durée</a><a class="chip" href="#/assistant">Conseiller IA</a><a class="chip" href="#/publier-bien">+ Publier un bien</a></div>'
     + ((biensR || []).length ? '<div class="strip">' + biensR.map(b => { const ph = /^https:\/\//.test((b.photos || [])[0] || '') ? b.photos[0] : ''; return '<a class="mini" href="#/bien/' + b.id + '"><div class="ph" style="aspect-ratio:4/3' + (ph ? ';background-image:url(\'' + esc(ph) + '\')' : '') + '"></div><div class="t">' + esc(b.titre) + '</div><div class="p">' + (b.prix_fcfa ? fcfa(b.prix_fcfa) + (b.periodicite === 'mois' ? ' / mois' : b.periodicite === 'nuit' ? ' / nuit' : '') : 'Prix sur demande') + '</div></a>'; }).join('') + '</div>' : '<div class="card muted">Les premières offres arrivent bientôt.</div>')
     + '</section>'
     + '<section><div class="sec-h"><h2>Cette semaine au Market</h2>' + ((recents || []).length > 2 ? '<span class="sn"><button type="button" class="sn-b" data-sn="-1" aria-label="Annonces précédentes"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M164.24,203.76a6,6,0,1,1-8.48,8.48l-80-80a6,6,0,0,1,0-8.48l80-80a6,6,0,0,1,8.48,8.48L88.49,128Z"/></svg></button><button type="button" class="sn-b" data-sn="1" aria-label="Annonces suivantes"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M180.24,132.24l-80,80a6,6,0,0,1-8.48-8.48L167.51,128,91.76,52.24a6,6,0,0,1,8.48-8.48l80,80A6,6,0,0,1,180.24,132.24Z"/></svg></button></span>' : '') + '<a href="#/market">Tout voir</a></div>'
@@ -1045,7 +1047,7 @@ function lire() {
 async function notifications() {
   const { data } = await sb.from('notifications').select('*').order('created_at', { ascending: false }).limit(50);
   app.innerHTML = `<a class="back" href="#/">‹ Accueil</a><h1>Notifications</h1>
-  <div class="list" style="margin-top:12px">${(data || []).map(n => `<a class="card notif ${n.lue ? '' : 'unread'}" style="display:block;text-decoration:none" href="${n.type === 'info' && n.annonce_id ? '#/mes-annonces?o=envoyees' : n.type === 'interet' || n.type === 'rappel_j53' || n.type === 'expiration' ? '#/mes-annonces' : n.type === 'nouveautes' ? '#/market' : '#/'}">
+  <div class="list" style="margin-top:12px">${(data || []).map(n => `<a class="card notif ${n.lue ? '' : 'unread'}" style="display:block;text-decoration:none" href="${n.type === 'demande_bien' ? (state.profil.is_admin ? '#/admin/demandes?id=' + n.demande_id : '#/mes-biens') : n.type === 'suivi_demande' ? '#/mes-biens' : n.type === 'moderation_bien' ? '#/mes-biens?o=offres' : n.type === 'info' && n.annonce_id ? '#/mes-annonces?o=envoyees' : n.type === 'interet' || n.type === 'rappel_j53' || n.type === 'expiration' ? '#/mes-annonces' : n.type === 'nouveautes' ? '#/market' : '#/'}">
     <b>${esc(n.titre)}</b>${n.message ? `<div class="muted small">${esc(n.message)}</div>` : ''}<div class="muted small">${quand(n.created_at)}</div></a>`).join('') || '<div class="card center pad">Aucune notification.</div>'}</div>
   <p class="muted small center" style="margin-top:12px">Réglez vos alertes dans <a href="#/profil">Mon compte</a>.</p>`;
   const nonLues = (data || []).filter(n => !n.lue).map(n => n.id);
@@ -1059,6 +1061,9 @@ function profil() {
   <section class="card mon-appli" style="margin-top:12px" aria-label="Mon appli"><h2 style="margin-top:0">Mon appli</h2>
     <div class="ma-l"><div><b>Installation</b><div id="instRow"></div></div></div>
     <div class="ma-l"><div><b>Notifications</b><div class="push-row" id="pushRow"></div></div></div></section>
+  <section class="card" style="margin-top:12px"><h2 style="margin-top:0">Biens immobiliers</h2>
+    <p class="muted small">${p.identite_verifiee ? 'Identité vérifiée.' : 'Agents, promoteurs, entreprises et propriétaires : faites vérifier votre identité pour publier en confiance.'}</p>
+    <div class="row"><a class="btn sm ghost" href="#/mes-biens">Mes demandes et offres</a><a class="btn sm ghost" href="#/verification">${p.identite_verifiee ? 'Ma vérification' : 'Vérifier mon identité'}</a></div></section>
   <form id="f" class="card" style="margin-top:12px">
     <label for="nom">Nom d'affichage (visible des autres résidents)</label><input id="nom" type="text" maxlength="40" value="${esc(p.nom_affichage)}">
     <label for="tel">Téléphone (privé, nécessaire pour être recontacté sur le Market)</label><input id="tel" type="tel" value="${esc(p.telephone || '')}" placeholder="+225 07 00 00 00 00">
@@ -1150,6 +1155,11 @@ function avis() {
 // ---------- démarrage ----------
 window.addEventListener('appinstalled', () => { window._installPrompt = null; document.querySelectorAll('.install-card').forEach(x => x.remove()); });
 window.addEventListener('hashchange', router);
+let nbErr = 0;
+const remonter = (msg, src) => { if (!state.session || nbErr++ > 10 || /ResizeObserver|Script error|AbortError|Failed to fetch|Load failed|NetworkError/i.test(msg || '')) return;
+  sb.rpc('signaler_erreur', { p_message: String(msg || '').slice(0, 800), p_source: String(src || '').slice(0, 250), p_page: location.hash.split('?')[0], p_navigateur: navigator.userAgent.slice(0, 180) }).then(() => {}, () => {}); };
+window.addEventListener('error', (e) => remonter(e.message, (e.filename || '').split('/').pop() + ':' + e.lineno));
+window.addEventListener('unhandledrejection', (e) => remonter(e.reason?.message || String(e.reason), 'promesse'));
 setTimeout(() => { if (state.session) activerPush(false); }, 4000);
 // Arrivée depuis le bouton « Installer avec Chrome » : la fenêtre d'installation s'ouvre d'elle-même
 if (new URLSearchParams(location.search).has('inst')) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (_) {} setTimeout(() => { if (!estInstallee()) installer(true); }, 1800); }

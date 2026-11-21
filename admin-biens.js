@@ -6,6 +6,7 @@ const ETAPES = [['nouveau', 'Nouveau'], ['contacte', 'Contacté'], ['visite_plan
 const LIB = Object.fromEntries(ETAPES);
 const MOTIFS = { prix: 'Prix', indisponible: 'Bien indisponible', proprietaire_injoignable: 'Propriétaire injoignable', prospect_absent: 'Prospect absent', documents: 'Documents incomplets', doublon: 'Doublon', autre: 'Autre' };
 const RESULTATS = { realisee: 'Réalisée', annulee: 'Annulée', absent: 'Absent', non_conclue: 'Non conclue' };
+const lieuB = (b) => [b.quartier && !String(b.quartier).toLowerCase().includes(String(b.commune || '').toLowerCase()) ? b.quartier : null, b.commune].filter(Boolean).join(', ');
 const SRC = { pro: 'Pro', kassio: 'KASSIO', whatsapp: 'WhatsApp', web: 'Web' };
 const intl = (t) => { let d = String(t || '').replace(/[^0-9]/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.length === 10 && d.startsWith('0')) d = '225' + d; return d; };
 const wa = (t, msg) => t ? `<a class="btn sm soft" target="_blank" rel="noopener" href="https://wa.me/${intl(t)}${msg ? '?text=' + encodeURIComponent(msg) : ''}">WhatsApp</a>` : '';
@@ -24,7 +25,9 @@ export async function traiter(box) {
     ['Demandes non assignées', n.non_assignees, '#/admin/demandes?f=non_assignees', 'Personne n’en est responsable'],
     ['Offres à valider', n.biens_a_valider, '#/admin/validation', 'Publiées par des pros, en attente'],
     ['Comptes pros à vérifier', n.pros_a_valider, '#/admin/validation?o=pros', 'Agents, promoteurs, entreprises'],
-    ['Doublons possibles', n.doublons, '#/admin/demandes?f=doublons', 'Même téléphone sur plusieurs demandes']];
+    ['Doublons possibles', n.doublons, '#/admin/demandes?f=doublons', 'Même téléphone sur plusieurs demandes'],
+    ['Identités à vérifier', n.kyc_a_verifier, '#/admin/identites', 'Pièces d’identité envoyées'],
+    ['Erreurs de l’appli (24 h)', n.erreurs_24h, '#/admin/erreurs', 'Problèmes rencontrés par les membres']];
   const total = items.reduce((t, i) => t + (i[1] || 0), 0);
   box.innerHTML = `
   <section class="card at-box"><h2>À traiter maintenant</h2><p class="muted small">${total ? total + ' élément' + (total > 1 ? 's' : '') + ' bloquent le suivi commercial ou la qualité des offres.' : 'Rien en attente : tout est à jour.'}</p>
@@ -88,7 +91,7 @@ async function ficheDemande(z, d, admins, tels, fermer, recharger) {
     <p><b>${esc(d.nom || 'Membre')}</b> · ${esc(d.telephone || 'sans téléphone')} ${wa(d.telephone, msg)} ${d.telephone ? `<a class="btn sm ghost" href="tel:+${intl(d.telephone)}">Appeler</a>` : ''}</p>
     ${autres ? `<p class="small err-t">Ce téléphone a ${tels.get(d.telephone_norm)} demandes ouvertes : vérifiez s’il s’agit d’un doublon.</p>` : ''}
     ${d.message ? `<blockquote class="dm-msg">${esc(d.message)}</blockquote>` : ''}
-    <div class="dm-bien">${b ? `<a href="#/bien/${b.id}" target="_blank"><b>${esc(b.reference)}</b> ${esc(b.titre)}</a><div class="muted small">${esc(prixBien(b))} · ${esc([b.quartier, b.commune].filter(Boolean).join(', '))} · ${esc(SRC[b.source] || b.source)}${b.source_nom ? ' (' + esc(b.source_nom) + ')' : ''}${b.statut !== 'publie' ? ' · ' + esc(b.statut) : ''}</div>
+    <div class="dm-bien">${b ? `<a href="#/bien/${b.id}" target="_blank"><b>${esc(b.reference)}</b> ${esc(b.titre)}</a><div class="muted small">${esc(prixBien(b))} · ${esc(lieuB(b))} · ${esc(SRC[b.source] || b.source)}${b.source_nom ? ' (' + esc(b.source_nom) + ')' : ''}${b.statut !== 'publie' ? ' · ' + esc(b.statut) : ''}</div>
       <button type="button" class="btn sm soft" id="ct" style="margin-top:8px">Voir le contact de l’annonceur</button><div id="ctz"></div>` : `<span class="muted">Bien supprimé : ${esc(d.bien_ref || '')} ${esc(d.bien_titre || '')}</span>`}</div>
     <form id="mf" class="dm-form">
       <div class="grid2">
@@ -105,11 +108,14 @@ async function ficheDemande(z, d, admins, tels, fermer, recharger) {
       <p class="err" id="er" hidden></p>
       <div class="row"><button class="btn">Enregistrer</button>${!d.assigne_a ? '<button type="button" class="btn soft" id="moi">Je m’en occupe</button>' : ''}</div>
     </form>
+    <h3 style="margin-top:20px">Notes internes <span class="muted small">(visibles des seuls administrateurs)</span></h3>
+    <div id="nz"></div>
     <h3 style="margin-top:20px">Historique</h3>
     <div class="dm-h">${(H || []).map(h => `<div><span class="muted small">${esc(dateFr(h.created_at, true))} · ${esc(h.profiles?.nom_affichage || 'Système')}</span><br>${h.type === 'statut' ? `${esc(LIB[h.de_statut] || h.de_statut || '')} → <b>${esc(LIB[h.vers_statut] || h.vers_statut)}</b>` : h.type === 'creation' ? '<b>Demande créée</b>' : esc({ note: 'Note', assignation: 'Assignée à', relance: 'Prochaine action', visite: 'Visite' }[h.type] || h.type)}${h.note ? ' · ' + esc(h.note) : ''}</div>`).join('') || '<p class="muted">—</p>'}</div>
   </div>`;
   const $ = (s) => z.querySelector(s);
   $('#x').onclick = fermer;
+  notesInternes($('#nz'), 'demande', d.id);
   const majZones = () => { const s = $('#st').value; $('#zv').hidden = !['visite_planifiee', 'visite_realisee', 'relance', 'gagne', 'perdu'].includes(s) && !d.visite_le; $('#zr').hidden = !['visite_realisee', 'relance', 'gagne', 'perdu'].includes(s) && !d.visite_resultat; $('#zp').hidden = s !== 'perdu'; };
   $('#st').onchange = majZones; majZones();
   const ct = $('#ct');
@@ -154,7 +160,7 @@ export async function validation(box) {
   ${o === 'offres'
     ? ((B || []).length ? `<div class="list">${B.map(b => `<div class="card val-r" data-id="${b.id}">
         <div class="val-ph">${(b.photos || []).slice(0, 4).map(u => `<img src="${esc(u)}" alt="" referrerpolicy="no-referrer">`).join('') || '<span class="muted small">Sans photo</span>'}</div>
-        <div class="val-t"><b>${esc(b.reference)} · ${esc(b.titre)}</b><div class="small">${esc(TRANSACTIONS[b.transaction] || '')} · ${esc(TYPES[b.type_bien] || b.type_bien)} · ${esc([b.quartier, b.commune].filter(Boolean).join(', '))} · ${esc(prixBien(b))}</div>
+        <div class="val-t"><b>${esc(b.reference)} · ${esc(b.titre)}</b><div class="small">${esc(TRANSACTIONS[b.transaction] || '')} · ${esc(TYPES[b.type_bien] || b.type_bien)} · ${esc(lieuB(b))} · ${esc(prixBien(b))}</div>
         <div class="muted small">Par ${esc(b.profiles?.nom_affichage || '—')}${b.profiles?.societe ? ' (' + esc(b.profiles.societe) + ')' : ''} · ${esc(b.profiles?.type_compte || '')}${b.profiles?.pro_valide ? ' vérifié' : ''} · ${esc(quand(b.created_at))}</div>
         ${b.description ? `<p class="small val-d">${esc(b.description.slice(0, 400))}</p>` : ''}
         <div class="row"><button class="btn sm" data-pub="${b.id}">Publier</button><button class="btn sm ghost" data-ref="${b.id}">Refuser</button><a class="btn sm ghost" href="#/bien/${b.id}" target="_blank">Voir</a></div></div></div>`).join('')}</div>`
@@ -187,7 +193,7 @@ export async function catalogueAdmin(box) {
     <span class="chips-sep"></span>${[['publie', 'En ligne'], ['expire', 'Expirées'], ['retire', 'Retirées'], ['refuse', 'Refusées']].map(([k, l]) => `<a class="chip ${st === k ? 'on' : ''}" href="${lien({ st: k })}">${l}</a>`).join('')}</div>
   <p class="muted small">${count ?? 0} offre${count > 1 ? 's' : ''}${count > 200 ? ' (200 affichées : affinez la recherche)' : ''}</p>
   <table class="adm no-q"><thead><tr><th>Réf.</th><th>Offre</th><th>Prix</th><th>Source</th><th>Vues</th><th>Ajoutée</th><th></th></tr></thead><tbody>
-  ${(B || []).map(b => `<tr><td>${esc(b.reference)}</td><td><a href="#/bien/${b.id}" target="_blank">${esc(b.titre)}</a><div class="muted small">${esc(TRANSACTIONS[b.transaction] || '')} · ${esc([b.quartier, b.commune].filter(Boolean).join(', '))}</div></td>
+  ${(B || []).map(b => `<tr><td>${esc(b.reference)}</td><td><a href="#/bien/${b.id}" target="_blank">${esc(b.titre)}</a><div class="muted small">${esc(TRANSACTIONS[b.transaction] || '')} · ${esc(lieuB(b))}</div></td>
     <td data-tri="${b.prix_fcfa || 0}">${esc(prixBien(b))}</td><td>${esc(SRC[b.source] || b.source)}${b.source_nom ? `<div class="muted small">${esc(b.source_nom)}</div>` : ''}${b.verifie ? ' <span class="badge ok">vérifié</span>' : ''}</td>
     <td>${b.vues || 0}</td><td>${esc(dateFr(b.created_at))}</td>
     <td><div class="row"><button class="btn sm soft" data-ct="${b.id}">Contact</button>${b.statut === 'publie' ? `<button class="btn sm ghost" data-ret="${b.id}">Retirer</button>` : `<button class="btn sm ghost" data-pub="${b.id}">Remettre en ligne</button>`}</div><div class="ctz"></div></td></tr>`).join('')}
@@ -219,4 +225,44 @@ export async function sources(box) {
   ${(W || []).length ? `<details style="margin-top:12px"><summary>Derniers messages</summary><div class="list no-q">${W.map(m => `<div class="small dm-w"><span class="badge ${m.statut === 'nouveau' ? 'ok' : 'soft'}">${esc(m.statut)}</span> <b>${esc(m.groupe || '')}</b> · ${esc(quand(m.recu_le))}<br><span class="muted">${esc(m.extrait || '')}</span></div>`).join('')}</div></details>` : ''}
   </section>`;
   box.querySelector('#go').onclick = async (e) => { const b = e.currentTarget; b.disabled = true; b.textContent = 'Lancé…'; const { error } = await sb.rpc('admin_lancer_scraping'); if (error) { b.disabled = false; return toast(errMsg(error)); } toast('Passage lancé : résultat dans 1 à 2 minutes.', 5000); setTimeout(() => sources(box), 90000); };
+}
+
+// ---------- Notes internes (bien, demande, profil) ----------
+export async function notesInternes(z, type, id) {
+  const { data: N } = await sb.from('notes_internes').select('id,texte,created_at,auteur_id,profiles:auteur_id(nom_affichage)').eq('cible_type', type).eq('cible_id', id).order('created_at', { ascending: false });
+  z.innerHTML = `<form class="ni-f"><input type="text" maxlength="2000" placeholder="Ex. propriétaire négociable de 10 %, zone très demandée…" aria-label="Nouvelle note"><button class="btn sm">Ajouter</button></form>
+    <div class="dm-h">${(N || []).map(n => `<div><span class="muted small">${esc(dateFr(n.created_at, true))} · ${esc(n.profiles?.nom_affichage || 'Admin')}</span>${n.auteur_id === state.session.user.id ? ` <a href="#" class="small" data-sup="${n.id}">supprimer</a>` : ''}<br>${esc(n.texte)}</div>`).join('')}</div>`;
+  z.querySelector('form').onsubmit = async (e) => { e.preventDefault(); const t = z.querySelector('input').value.trim(); if (!t) return;
+    const { error } = await sb.from('notes_internes').insert({ cible_type: type, cible_id: id, texte: t }); if (error) return toast(errMsg(error)); notesInternes(z, type, id); };
+  z.querySelectorAll('[data-sup]').forEach(a => a.onclick = async (e) => { e.preventDefault(); await sb.from('notes_internes').delete().eq('id', a.dataset.sup); notesInternes(z, type, id); });
+}
+
+// ---------- Vérification des identités ----------
+export async function identites(box) {
+  const { data: K, error } = await sb.from('kyc_dossiers').select('*, profiles:user_id(nom_affichage,societe,type_compte,telephone)').order('statut').order('envoye_le', { ascending: false });
+  if (error) throw error;
+  const chemins = (K || []).flatMap(k => [k.cni_path, k.selfie_path, k.rccm_path].filter(Boolean));
+  const { data: S } = chemins.length ? await sb.storage.from('kyc').createSignedUrls(chemins, 900) : { data: [] };
+  const url = new Map((S || []).map(x => [x.path, x.signedUrl]));
+  const doc = (p, l) => p ? (/\.pdf$/.test(p) ? `<a class="btn sm ghost" target="_blank" rel="noopener" href="${esc(url.get(p) || '#')}">${l} (PDF)</a>` : `<a target="_blank" rel="noopener" href="${esc(url.get(p) || '#')}"><img class="kyc-img" src="${esc(url.get(p) || '')}" alt="${l}"></a>`) : '';
+  box.innerHTML = (K || []).length ? `<div class="list">${K.map(k => `<div class="card val-r"><div class="val-ph">${doc(k.cni_path, 'Pièce d’identité')}${doc(k.selfie_path, 'Selfie')}${doc(k.rccm_path, 'RCCM')}</div>
+    <div><b>${esc(k.profiles?.nom_affichage || '—')}</b>${k.profiles?.societe ? ' · ' + esc(k.profiles.societe) : ''} <span class="muted small">${esc(k.profiles?.type_compte || '')}</span>
+    <div class="small">${esc(k.profiles?.telephone || '')} · envoyé ${esc(quand(k.envoye_le).toLowerCase())}</div>
+    <p><span class="badge ${k.statut === 'valide' ? 'ok' : k.statut === 'refuse' ? 'soft' : 'warn'}">${{ en_attente: 'À vérifier', valide: 'Validé', refuse: 'Refusé' }[k.statut]}</span>${k.motif ? ' ' + esc(k.motif) : ''}</p>
+    ${k.statut === 'en_attente' ? `<div class="row"><button class="btn sm" data-ok="${k.user_id}">Valider l’identité</button><button class="btn sm ghost" data-ko="${k.user_id}">Refuser</button></div>` : ''}
+    <p class="muted small">Liens des documents valables 15 minutes.</p></div></div>`).join('')}</div>` : '<div class="card center pad muted">Aucun dossier d’identité reçu.</div>';
+  box.querySelectorAll('[data-ok]').forEach(x => x.onclick = async () => { const { error } = await sb.rpc('admin_decider_kyc', { p_user: x.dataset.ok, p_valide: true }); if (error) return toast(errMsg(error)); toast('Identité validée.'); identites(box); });
+  box.querySelectorAll('[data-ko]').forEach(x => x.onclick = async () => { const m = prompt('Motif du refus (envoyé au membre) :'); if (!m) return; const { error } = await sb.rpc('admin_decider_kyc', { p_user: x.dataset.ko, p_valide: false, p_motif: m }); if (error) return toast(errMsg(error)); toast('Dossier refusé.'); identites(box); });
+}
+
+// ---------- Journal des erreurs ----------
+export async function erreurs(box) {
+  const voir = new URLSearchParams((location.hash.split('?')[1]) || '').get('v') || 'ouvertes';
+  let r = sb.from('erreurs_app').select('*').order('dernier', { ascending: false }).limit(100);
+  if (voir === 'ouvertes') r = r.eq('resolue', false);
+  const { data: E, error } = await r; if (error) throw error;
+  box.innerHTML = `<div class="chips"><a class="chip ${voir === 'ouvertes' ? 'on' : ''}" href="#/admin/erreurs">À regarder</a><a class="chip ${voir === 'toutes' ? 'on' : ''}" href="#/admin/erreurs?v=toutes">Toutes</a></div>
+  ${(E || []).length ? `<table class="adm no-q"><thead><tr><th>Erreur</th><th>Écran</th><th>Fois</th><th>Dernière</th><th></th></tr></thead><tbody>${E.map(e => `<tr><td><b>${esc(e.message)}</b><div class="muted small">${esc(e.source || '')}</div><div class="muted small">${esc((e.navigateur || '').slice(0, 90))}</div></td><td>${esc(e.page || '')}</td><td>${e.nb}</td><td>${esc(quand(e.dernier))}</td><td>${e.resolue ? '<span class="badge ok">Résolue</span>' : `<button class="btn sm ghost" data-res="${e.id}">Marquer résolue</button>`}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="card center pad muted">Aucune erreur remontée. Les erreurs rencontrées par les membres apparaissent ici automatiquement.</div>'}`;
+  box.querySelectorAll('[data-res]').forEach(x => x.onclick = async () => { await sb.from('erreurs_app').update({ resolue: true }).eq('id', x.dataset.res); erreurs(box); });
 }

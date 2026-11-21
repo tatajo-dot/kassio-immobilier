@@ -85,6 +85,7 @@ async function catalogue(app) {
     ${Object.entries(TRANSACTIONS).map(([k, l]) => `<a class="chip ${t === k ? 'on' : ''}" href="${lien({ t: k, vue: '' })}">${l}</a>`).join('')}
     <a class="chip ${vue === 'favoris' ? 'on' : ''}" href="${lien({ vue: 'favoris' })}">Favoris</a>
     <a class="chip" href="#/mes-biens">Mes demandes</a>
+    <a class="chip" href="#/assistant">Conseiller IA</a>
   </div>
   ${vue === 'favoris' ? '' : `<details class="bi-filtres" ${p.get('ty') || p.get('c') || p.get('max') || p.get('src') || p.get('pc') ? 'open' : ''}><summary>Filtres</summary>
   <form id="flt" class="bi-grid">
@@ -138,6 +139,11 @@ async function fiche(app, id) {
     sb.from('biens').select('id,reference,titre,transaction,type_bien,commune,quartier,prix_fcfa,periodicite,nb_pieces,nb_chambres,surface_m2,photos,source,verifie')
       .eq('statut', 'publie').eq('transaction', b.transaction).eq('type_bien', b.type_bien).neq('id', b.id).eq('commune', b.commune || '').limit(6)]);
   if (b.statut === 'publie' && !moi) sb.rpc('vue_bien', { p_bien: b.id }).then(() => {});
+  const [{ data: note }, { data: mesDem }, { data: monAvis }] = await Promise.all([
+    sb.from('v_notes_biens').select('moyenne,nb').eq('bien_id', b.id).maybeSingle(),
+    sb.from('demandes_biens').select('id').eq('bien_id', b.id).eq('demandeur_id', state.session.user.id).or('visite_resultat.eq.realisee,statut.in.(visite_realisee,gagne)').limit(1),
+    sb.from('avis_biens').select('id').eq('bien_id', b.id).eq('auteur_id', state.session.user.id).maybeSingle()]);
+  const peutNoter = (mesDem || []).length && !monAvis;
   const photos = (b.photos || []).map(imgSure).filter(Boolean);
   const eq = (b.equipements || []).map(e => EQUIPEMENTS[e] || e);
   const favs = new Set(fv ? [b.id] : []);
@@ -154,6 +160,7 @@ async function fiche(app, id) {
     <div class="tags"><span class="tag">${esc(TYPES[b.type_bien] || b.type_bien)}</span>${lieu(b) ? `<span class="tag">${esc(lieu(b))}</span>` : ''}${caracts(b) ? `<span class="tag">${esc(caracts(b))}</span>` : ''}<span class="tag">Réf. ${esc(b.reference)}</span></div>
     ${eq.length ? `<p class="small"><b>Équipements :</b> ${esc(eq.join(', '))}</p>` : ''}
     ${b.description ? `<div class="bi-desc">${esc(b.description)}</div>` : ''}
+    ${note?.nb ? `<p class="bi-note">${'★'.repeat(Math.round(note.moyenne))}${'☆'.repeat(5 - Math.round(note.moyenne))} <b>${String(note.moyenne).replace('.', ',')}</b> <span class="muted small">(${note.nb} avis après visite)</span></p>` : ''}
     <p class="muted small">Publiée ${b.publie_le ? quand(b.publie_le).toLowerCase() : 'récemment'}${b.vues ? ` · ${b.vues} vue${b.vues > 1 ? 's' : ''}` : ''}</p>
     ${moi ? `<div class="row"><a class="btn block" href="#/publier-bien?id=${b.id}">Modifier</a><a class="btn ghost block" href="#/mes-biens">Mes biens</a></div>`
       : b.statut !== 'publie' ? '<p class="muted">Cette offre n’est plus proposée.</p>'
@@ -162,6 +169,8 @@ async function fiche(app, id) {
         <p class="muted small">KASSIO vérifie la disponibilité auprès de l’annonceur et organise la visite : vous n’avez pas à négocier seul.</p>`}
     ${!moi ? `<button class="fav fav-inline${favs.has(b.id) ? ' on' : ''}" data-favb="${b.id}" aria-label="${favs.has(b.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${coeur}<span>Favori</span></button>` : ''}
   </div></div>
+  ${peutNoter ? `<section class="card" style="margin-top:20px" id="avz"><h2>Vous avez visité ce bien : votre avis ?</h2><div class="bi-etoiles" role="radiogroup" aria-label="Note">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} sur 5">☆</button>`).join('')}</div>
+    <textarea id="avc" maxlength="1000" placeholder="État réel du bien, accueil, conformité à l’annonce…"></textarea><button class="btn sm" id="avg" style="margin-top:8px" disabled>Publier mon avis</button></section>` : ''}
   ${(sim || []).length ? `<section style="margin-top:28px"><h2>Offres similaires${b.commune ? ' à ' + esc(b.commune) : ''}</h2><div class="grid2 grid3">${sim.map(s => carteBien(s, null)).join('')}</div></section>` : ''}`;
   brancherFavs(app, favs);
   const formulaire = (type) => {
@@ -191,6 +200,11 @@ async function fiche(app, id) {
       window.dispatchEvent(new Event('kas-fete'));
     };
   };
+  const avz = app.querySelector('#avz');
+  if (avz) { let n = 0; const et = avz.querySelectorAll('[data-n]');
+    et.forEach(x => x.onclick = () => { n = +x.dataset.n; et.forEach(y => { y.textContent = +y.dataset.n <= n ? '★' : '☆'; y.classList.toggle('on', +y.dataset.n <= n); }); avz.querySelector('#avg').disabled = false; });
+    avz.querySelector('#avg').onclick = async () => { const { error } = await sb.from('avis_biens').insert({ bien_id: b.id, note: n, commentaire: avz.querySelector('#avc').value.trim() || null });
+      if (error) return toast(errMsg(error)); avz.innerHTML = '<b>Merci pour votre avis.</b>'; }; }
   app.querySelector('#dv')?.addEventListener('click', () => formulaire('visite'));
   app.querySelector('#di')?.addEventListener('click', () => formulaire('info'));
 }
@@ -314,7 +328,65 @@ async function mesBiens(app) {
   });
 }
 
+// ---------- Assistant immobilier (IA) ----------
+const HISTO = [];
+async function assistant(app) {
+  const bulle = (r, t) => `<div class="as-b ${r}">${esc(t).replace(/\b(KAS-\d+)\b/g, '<b>$1</b>')}</div>`;
+  app.innerHTML = `<a class="back" href="#/biens">‹ Biens immobiliers</a><h1>Votre conseiller KASSIO</h1>
+  <p class="muted">Décrivez ce que vous cherchez : commune, type de bien, budget. Exemple : « appartement 3 pièces à Cocody, 300 000 par mois ».</p>
+  <div class="as-fil" id="fil">${HISTO.length ? HISTO.map(h => bulle(h.role === 'user' ? 'moi' : 'kas', h.content)).join('') : bulle('kas', 'Bonjour, je suis votre conseiller KASSIO. Que recherchez-vous ?')}</div>
+  <div id="res"></div>
+  <form id="af" class="as-f"><label class="sr" for="aq">Votre message</label><input id="aq" type="text" maxlength="800" autocomplete="off" placeholder="Votre recherche…"><button class="btn">Envoyer</button></form>
+  <p class="muted small">Le conseiller ne voit que les offres du catalogue KASSIO. Pour visiter, ouvrez une offre puis « Demander une visite ».</p>`;
+  const fil = app.querySelector('#fil'), f = app.querySelector('#af'), q = app.querySelector('#aq');
+  f.onsubmit = async (e) => {
+    e.preventDefault(); const t = q.value.trim(); if (!t) return;
+    q.value = ''; fil.insertAdjacentHTML('beforeend', bulle('moi', t) + '<div class="as-b kas att">…</div>'); fil.scrollTop = fil.scrollHeight;
+    const btn = f.querySelector('button'); btn.disabled = true;
+    const { data, error } = await sb.functions.invoke('assistant', { body: { question: t, historique: HISTO } });
+    fil.querySelector('.att')?.remove(); btn.disabled = false;
+    if (error || !data?.reponse) { fil.insertAdjacentHTML('beforeend', bulle('kas', 'Le conseiller est indisponible pour le moment. Réessayez dans un instant.')); return; }
+    HISTO.push({ role: 'user', content: t }, { role: 'assistant', content: data.reponse }); if (HISTO.length > 12) HISTO.splice(0, HISTO.length - 12);
+    fil.insertAdjacentHTML('beforeend', bulle('kas', data.reponse)); fil.scrollTop = fil.scrollHeight;
+    app.querySelector('#res').innerHTML = (data.biens || []).length ? `<div class="grid2 grid3" style="margin:14px 0">${data.biens.map(b => carteBien(b, null)).join('')}</div>` : '';
+    q.focus();
+  };
+}
+
+// ---------- Vérification d'identité ----------
+async function verification(app) {
+  const { data: k } = await sb.from('kyc_dossiers').select('statut,motif,envoye_le').eq('user_id', state.session.user.id).maybeSingle();
+  const pro = state.profil.type_compte && state.profil.type_compte !== 'particulier';
+  const etat = !k ? '' : k.statut === 'valide' ? '<div class="zoo"><b>Identité vérifiée</b><p>Le badge apparaît sur vos offres.</p></div>'
+    : k.statut === 'en_attente' ? `<div class="zoo"><b>Dossier en cours d’examen</b><p>Envoyé ${esc(quand(k.envoye_le).toLowerCase())}. Vous serez notifié de la décision.</p></div>`
+    : `<div class="zoo"><b>Dossier refusé</b><p>${esc(k.motif || '')}</p><p>Vous pouvez renvoyer vos pièces ci-dessous.</p></div>`;
+  app.innerHTML = `<a class="back" href="#/profil">‹ Mon compte</a><h1>Vérifier mon identité</h1>
+  <p class="muted">Pour publier des offres en confiance, KASSIO vérifie l’identité des annonceurs. Vos documents restent privés : seuls les administrateurs KASSIO y ont accès.</p>${etat}
+  ${k?.statut === 'valide' || k?.statut === 'en_attente' ? '' : `<form id="kf" class="narrow" novalidate>
+    <label for="cni">Pièce d’identité (CNI, passeport) *</label><input id="cni" type="file" accept="image/*,application/pdf">
+    <label for="sel">Selfie avec la pièce d’identité *</label><input id="sel" type="file" accept="image/*" capture="user">
+    ${pro ? '<label for="rc">Registre du commerce (RCCM) ou attestation professionnelle</label><input id="rc" type="file" accept="image/*,application/pdf">' : ''}
+    <p class="err" id="ke" hidden></p><button class="btn block" style="margin-top:16px">Envoyer mon dossier</button></form>`}`;
+  const f = app.querySelector('#kf'); if (!f) return;
+  f.onsubmit = async (e) => {
+    e.preventDefault(); const err = (m) => { const x = f.querySelector('#ke'); x.textContent = m; x.hidden = !m; };
+    const cni = f.querySelector('#cni').files[0], sel = f.querySelector('#sel').files[0], rc = f.querySelector('#rc')?.files[0];
+    if (!cni || !sel) return err('La pièce d’identité et le selfie sont obligatoires.');
+    const bt = f.querySelector('button'); bt.disabled = true; bt.textContent = 'Envoi…';
+    try {
+      const uid = state.session.user.id;
+      const envoi = async (file, nom) => { const pdf = file.type === 'application/pdf'; const blob = pdf ? file : await compress(file, 1600, 0.85);
+        const path = `${uid}/${Date.now()}-${nom}.${pdf ? 'pdf' : 'jpg'}`; const { error } = await sb.storage.from('kyc').upload(path, blob, { contentType: pdf ? 'application/pdf' : 'image/jpeg' }); if (error) throw error; return path; };
+      const p1 = await envoi(cni, 'cni'), p2 = await envoi(sel, 'selfie'), p3 = rc ? await envoi(rc, 'rccm') : null;
+      const { error } = await sb.rpc('envoyer_kyc', { p_cni: p1, p_selfie: p2, p_rccm: p3 }); if (error) throw error;
+      toast('Dossier envoyé.'); verification(app);
+    } catch (x) { bt.disabled = false; bt.textContent = 'Envoyer mon dossier'; err(errMsg(x)); }
+  };
+}
+
 export async function renderBiens(app, vue, param) {
+  if (vue === 'assistant') return assistant(app);
+  if (vue === 'verification') return verification(app);
   if (vue === 'bien') return fiche(app, param);
   if (vue === 'publier-bien') return publierBien(app);
   if (vue === 'mes-biens') return mesBiens(app);

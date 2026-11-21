@@ -1867,3 +1867,18 @@ h1.adm-h{font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.06em
 .val-ph img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}
 .val-d{color:var(--ink-2);margin:8px 0}
 .acc-biens .strip .mini .ph{background-color:var(--sunken)}
+.bi-note{font-size:15px;color:var(--ink);margin:6px 0}
+.bi-etoiles{display:flex;gap:4px;margin:8px 0}
+.bi-etoiles button{border:0;background:none;font-size:28px;line-height:1;cursor:pointer;color:var(--muted)}
+.bi-etoiles button.on{color:var(--red)}
+.as-fil{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-top:12px}
+.as-b{max-width:85%;padding:10px 13px;border-radius:14px;line-height:1.45;white-space:pre-line;font-size:14.5px}
+.as-b.kas{align-self:flex-start;background:var(--sunken)}
+.as-b.moi{align-self:flex-end;background:var(--ink);color:#fff}
+.as-b.att{opacity:.6}
+.as-f{display:flex;gap:8px;margin-top:10px}
+.as-f input{flex:1}
+.ni-f{display:flex;gap:8px;margin-bottom:10px}
+.ni-f input{flex:1}
+.kyc-img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}
+.adm-g{grid-template-columns:repeat(6,minmax(max-content,1fr))}
