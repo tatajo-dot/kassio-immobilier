@@ -1,0 +1,35 @@
+// KASSIO IMMOBILIER — service worker : l'interface fonctionne hors ligne, les données restent toujours en direct.
+const CACHE = 'kas-v1';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'admin.js', 'visite.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'logo.png?v=2', 'logo-dark.png?v=1', 'motion.js', 'son.js', 'trouve.js?v=123'];
+// À chaque version publiée, CHANGER CACHE (kas-vNN) : c'est ce qui fait télécharger la nouvelle version aux téléphones.
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
+self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE && x !== 'kas-img' && x !== 'kas-lib').map(x => caches.delete(x)))).then(() => self.clients.claim())); });
+self.addEventListener('fetch', (e) => {
+  const u = new URL(e.request.url);
+  if (u.pathname.includes('/videos/')) return; // vidéos (appli et stockage « videos ») : lues directement, par morceaux, jamais mises en cache
+  // Bibliothèque Supabase et polices : gardées sur le téléphone (l'appli démarre même si le CDN est lent ou hors ligne)
+  if (e.request.method === 'GET' && /^(cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)$/.test(u.hostname)) {
+    e.respondWith(caches.open('kas-lib').then(c => c.match(e.request).then(r => r || fetch(e.request).then(rep => { if (rep.ok || rep.type === 'opaque') c.put(e.request, rep.clone()); return rep; }))));
+    return;
+  }
+  if (e.request.method === 'GET' && /\/storage\/v1\/object\/(sign|public)\//.test(u.pathname)) {
+    // Photos : servies depuis le téléphone après le premier affichage (clé = chemin, sans le jeton)
+    const cle = new Request(u.origin + u.pathname);
+    e.respondWith(caches.open('kas-img').then(c => c.match(cle).then(r => r || fetch(e.request).then(rep => { if (rep.ok) { c.put(cle, rep.clone()); c.keys().then(k => { if (k.length > 300) k.slice(0, k.length - 300).forEach(x => c.delete(x)); }); } return rep; }))));
+    return;
+  }
+  if (e.request.method !== 'GET' || u.origin !== location.origin) return; // Supabase et CDN : jamais mis en cache ici
+  // Fichiers de l'application : servis tout de suite depuis le téléphone (version complète et cohérente,
+  // téléchargée d'un bloc à l'installation). Les fichiers absents du cache sont pris sur le réseau puis gardés.
+  const cle = e.request.mode === 'navigate' ? 'index.html' : e.request;
+  e.respondWith(caches.open(CACHE).then(c => c.match(cle, { ignoreSearch: true }).then(r => r || fetch(e.request).then(rep => { if (rep.ok && rep.type === 'basic') c.put(cle, rep.clone()); return rep; }).catch(() => e.request.mode === 'navigate' ? c.match('index.html') : Response.error()))));
+});
+self.addEventListener('push', (e) => {
+  let d = { titre: 'KASSIO IMMOBILIER' }; try { d = e.data ? e.data.json() : d; } catch (_) {}
+  const badge = () => { try { if (self.navigator.setAppBadge && d.badge) return self.navigator.setAppBadge(d.badge); } catch (_) {} };
+  e.waitUntil(Promise.all([self.registration.showNotification(d.titre || 'KASSIO IMMOBILIER', { body: d.message || '', icon: 'icon-192.png', badge: 'badge-96.png', tag: d.tag, vibrate: [80, 40, 80], data: { url: d.url || './#/notifications' } }), badge()]));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close(); const url = e.notification.data?.url || './';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ws => { const w = ws.find(x => 'focus' in x); if (w) { w.navigate(url).catch(() => {}); return w.focus(); } return clients.openWindow(url); }));
+});
