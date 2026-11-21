@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KASSIO IMMOBILIER</title>
-<meta name="description" content="L'espace privé des résidents KASSIO IMMOBILIER : Le Market, nos résidences, Le Flip Immo, les nouveautés.">
+<meta name="description" content="KASSIO IMMOBILIER : biens à louer et à vendre, offres des agences et promoteurs, Le Market.">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17181B">
 <meta name="color-scheme" content="light dark">
@@ -21,13 +21,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="styles.css?v=120">
+<link rel="stylesheet" href="styles.css?v=130">
 </head>
 <body>
 <header class="top" id="top" hidden>
   <a href="#/" class="brand" aria-label="Accueil KASSIO IMMOBILIER"><img src="logo.png?v=2" alt="KASSIO IMMOBILIER" width="123" height="40"></a>
   <nav class="top-nav" aria-label="Navigation principale">
     <a href="#/" data-nav="accueil">Accueil</a>
+    <a href="#/biens" data-nav="biens">Biens</a>
     <a href="#/market" data-nav="market">Le Market</a>
     <a href="#/mes-annonces" data-nav="mes-annonces">Mes annonces</a>
     <a href="#/bonnes-adresses" data-nav="bonnes-adresses">Bons plans</a>
@@ -42,10 +43,10 @@
 <main id="app" class="wrap" aria-live="polite"><div class="splash"><img src="logo.png?v=2" alt="KASSIO IMMOBILIER"><span class="spinner" aria-label="Chargement"></span></div></main>
 <nav class="tabbar" id="nav" hidden aria-label="Navigation">
   <a href="#/" data-nav="accueil"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M217.9,110.1l-80-80a14,14,0,0,0-19.8,0l-80,80A13.92,13.92,0,0,0,34,120v96a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V158h36v58a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V120A13.92,13.92,0,0,0,217.9,110.1ZM210,210H158V152a6,6,0,0,0-6-6H104a6,6,0,0,0-6,6v58H46V120a2,2,0,0,1,.58-1.42l80-80a2,2,0,0,1,2.84,0l80,80A2,2,0,0,1,210,120Z"/></svg><span>Accueil</span></a>
+  <a href="#/biens" data-nav="biens"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M240,210H222V96a6,6,0,0,0-6-6H150V40a6,6,0,0,0-9.33-5L76.88,77.49A6,6,0,0,0,74,82.62V122H40a6,6,0,0,0-6,6v82H16a6,6,0,0,0,0,12H240a6,6,0,0,0,0-12ZM210,102V210H150V102ZM86,85.83l52-34.66V210H86ZM46,134H74v76H46Zm60-28v12a6,6,0,0,1-12,0V106a6,6,0,0,1,12,0Zm0,40v12a6,6,0,0,1-12,0V146a6,6,0,0,1,12,0Zm0,40v12a6,6,0,0,1-12,0V186a6,6,0,0,1,12,0Zm60-40v12a6,6,0,0,1-12,0V146a6,6,0,0,1,12,0Zm24-40v12a6,6,0,0,1-12,0V106a6,6,0,0,1,12,0Zm0,40v12a6,6,0,0,1-12,0V146a6,6,0,0,1,12,0Zm0,40v12a6,6,0,0,1-12,0V186a6,6,0,0,1,12,0Z"/></svg><span>Biens</span></a>
   <a href="#/market" data-nav="market"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M26.22,94.41A6,6,0,0,0,26,96v16A38,38,0,0,0,42,143V216a6,6,0,0,0,6,6H208a6,6,0,0,0,6-6V143A38,38,0,0,0,230,112V96a5.91,5.91,0,0,0-.23-1.64L215.43,44.15A14.07,14.07,0,0,0,202,34H54A14.07,14.07,0,0,0,40.57,44.15Zm25.89-47A2,2,0,0,1,54,46H202a2,2,0,0,1,1.92,1.45L216.05,90H40ZM102,102h52v10a26,26,0,0,1-52,0Zm-64,0H90v10a26,26,0,0,1-38.18,23,6,6,0,0,0-1.650-1A26,26,0,0,1,38,112ZM202,210H54V148.66a38,38,0,0,0,42-16.21,37.95,37.95,0,0,0,64,0,38,38,0,0,0,42,16.21Zm3.83-76a6,6,0,0,0-1.65,1A26,26,0,0,1,166,112V102h52v10A26,26,0,0,1,205.83,134Z"/></svg><span>Market</span></a>
   <a href="#/publier" data-nav="publier" class="tab-pub" aria-label="Publier une annonce"><span class="pub"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M222,128a6,6,0,0,1-6,6H134v82a6,6,0,0,1-12,0V134H40a6,6,0,0,1,0-12h82V40a6,6,0,0,1,12,0v82h82A6,6,0,0,1,222,128Z"/></svg></span><span>Publier</span></a>
   <a href="#/mes-annonces" data-nav="mes-annonces"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M241.91,137.42,142.59,38.1a13.94,13.94,0,0,0-9.9-4.1H40a6,6,0,0,0-6,6v92.69a13.94,13.94,0,0,0,4.1,9.9l99.32,99.32a14,14,0,0,0,19.8,0l84.69-84.69A14,14,0,0,0,241.91,137.42Zm-8.490,11.31-84.69,84.69a2,2,0,0,1-2.83,0L46.59,134.1a2,2,0,0,1-.59-1.41V46h86.69a2,2,0,0,1,1.41.59l99.32,99.31A2,2,0,0,1,233.42,148.730ZM94,84A10,10,0,1,1,84,74,10,10,0,0,1,94,84Z"/></svg><span>Mes annonces</span><b class="nav-badge" id="navBadge" hidden></b></a>
-  <a href="#/profil" data-nav="profil"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M229.19,213c-15.81-27.32-40.63-46.49-69.47-54.62a70,70,0,1,0-63.44,0C67.44,166.5,42.62,185.67,26.81,213a6,6,0,1,0,10.38,6C56.4,185.81,90.34,166,128,166s71.6,19.81,90.81,53a6,6,0,1,0,10.380-6ZM70,96a58,58,0,1,1,58,58A58.07,58.07,0,0,1,70,96Z"/></svg><span>Compte</span></a>
 </nav>
 <div class="toast" id="toast" role="status" hidden></div>
 <script type="module" src="app.js"></script>

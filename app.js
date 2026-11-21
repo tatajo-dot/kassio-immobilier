@@ -143,12 +143,18 @@ const actif = () => state.profil?.statut === 'actif';
 const routes = {
   '': accueil, 'market': market, 'annonce': annonce, 'publier': publier, 'modifier': modifier, 'mes-annonces': mesAnnonces,
   'residences': residences, 'nouveautes': nouveautes, 'flip-immo': flip, 'bonnes-adresses': bonnesAdresses,
-  'notifications': notifications, 'profil': profil, 'avis': avis, 'lire': lire, 'admin': async (p) => (await import('./admin.js')).renderAdmin(app, p)
+  'notifications': notifications, 'profil': profil, 'avis': avis, 'lire': lire, 'admin': async (p) => (await import('./admin.js')).renderAdmin(app, p),
+  // Biens immobiliers (catalogue multi-sources, fiche, publication pro, suivi des demandes)
+  'biens': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'biens', p),
+  'bien': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'bien', p),
+  'publier-bien': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'publier-bien', p),
+  'mes-biens': async (p) => (await import('./biens.js?v=1')).renderBiens(app, 'mes-biens', p)
 };
 // Squelettes de chargement à la forme de l'écran qui arrive (affichés seulement si l'attente dépasse 120 ms)
 const SQ = {
   '': '<div class="sk"><i class="sk-hero"></i><i class="sk-h2"></i><div class="sk-row"><i></i><i></i><i></i></div><i class="sk-card"></i></div>',
   market: '<div class="sk"><i class="sk-t"></i><i class="sk-s"></i><i class="sk-in"></i><div class="sk-chips"><i></i><i></i><i></i><i></i></div><div class="sk-grid"><i></i><i></i><i></i><i></i></div></div>',
+  biens: '<div class="sk"><i class="sk-t"></i><i class="sk-s"></i><i class="sk-in"></i><div class="sk-chips"><i></i><i></i><i></i><i></i></div><div class="sk-grid"><i></i><i></i><i></i><i></i></div></div>',
   annonce: '<div class="sk"><i class="sk-back"></i><i class="sk-photo"></i><i class="sk-t"></i><i class="sk-s"></i><i class="sk-btn"></i></div>',
   residences: '<div class="sk"><i class="sk-back"></i><i class="sk-t"></i><i class="sk-res"></i><i class="sk-res"></i></div>',
   'mes-annonces': '<div class="sk"><i class="sk-t"></i><i class="sk-tabs"></i><i class="sk-line"></i><i class="sk-line"></i><i class="sk-line"></i></div>',
@@ -163,7 +169,7 @@ async function router() {
   document.getElementById('nav').hidden = !actif();
   // Espace KASSIO : la barre du haut change (plus de menu résident) pour ne pas confondre les deux menus
   document.body.classList.toggle('mode-admin', name === 'admin' && !!state.profil?.is_admin);
-  const sect = ({ '': 'accueil', annonce: 'market', modifier: 'mes-annonces' })[name] ?? name;
+  const sect = ({ '': 'accueil', annonce: 'market', modifier: 'mes-annonces', bien: 'biens', 'publier-bien': 'biens', 'mes-biens': 'biens' })[name] ?? name;
   document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === sect));
   window.scrollTo(0, 0);
   if (RECUP_TH) return nouveauMdp();
@@ -457,12 +463,13 @@ function brancherDecouverte(root) {
 }
 async function accueil() {
   // compteurs, dernières annonces, résidences et dernier Flip Immo chargés en même temps
-  const [, { data: recents }, { data: rr }, { count: nbAnn }, { data: fl }] = await Promise.all([
+  const [, { data: recents }, { data: rr }, { count: nbAnn }, { data: fl }, { data: biensR, count: nbBiens }] = await Promise.all([
     majCompteurs(),
     sb.from('v_market').select('id,titre,type,prix_fcfa,photos,statut').order('date_publication', { ascending: false }).limit(8),
     sb.from('residences').select('nom,photo_path,photos,type_bien').eq('visible', true).order('ordre'),
     sb.from('v_market').select('id', { count: 'exact', head: true }),
-    sb.from('contenus').select('image_path,numero').eq('visible', true).eq('type', 'Flip Immo').order('date_parution', { ascending: false }).limit(1)]);
+    sb.from('contenus').select('image_path,numero').eq('visible', true).eq('type', 'Flip Immo').order('date_parution', { ascending: false }).limit(1),
+    sb.from('biens').select('id,titre,prix_fcfa,periodicite,photos,commune,transaction', { count: 'exact' }).eq('statut', 'publie').order('verifie', { ascending: false }).order('publie_le', { ascending: false, nullsFirst: false }).limit(10)]);
   const nl = state.compteurs.demandes_non_lues || 0;
   const urls = await photosUrls((recents || []).map(a => a.photos[0]), true);
   const res = state.profil.residence || {};
@@ -484,6 +491,10 @@ async function accueil() {
     + petit('#/bonnes-adresses', 'Bons plans', 'Abidjan')
     + petit('#/nouveautes', 'Nouveautés', 'Programmes').replace('class="petit', 'class="petit clign')
     + '</nav>'
+    + '<section class="acc-biens"><div class="sec-h"><h2>Biens immobiliers</h2><a href="#/biens">' + (nbBiens ? nbBiens.toLocaleString('fr-FR') + ' offres' : 'Tout voir') + '</a></div>'
+    + '<div class="chips" style="margin:4px 0 12px"><a class="chip" href="#/biens?t=location">Louer</a><a class="chip" href="#/biens?t=vente">Acheter</a><a class="chip" href="#/biens?t=location_courte">Courte durée</a><a class="chip" href="#/publier-bien">+ Publier un bien</a></div>'
+    + ((biensR || []).length ? '<div class="strip">' + biensR.map(b => { const ph = /^https:\/\//.test((b.photos || [])[0] || '') ? b.photos[0] : ''; return '<a class="mini" href="#/bien/' + b.id + '"><div class="ph" style="aspect-ratio:4/3' + (ph ? ';background-image:url(\'' + esc(ph) + '\')' : '') + '"></div><div class="t">' + esc(b.titre) + '</div><div class="p">' + (b.prix_fcfa ? fcfa(b.prix_fcfa) + (b.periodicite === 'mois' ? ' / mois' : b.periodicite === 'nuit' ? ' / nuit' : '') : 'Prix sur demande') + '</div></a>'; }).join('') + '</div>' : '<div class="card muted">Les premières offres arrivent bientôt.</div>')
+    + '</section>'
     + '<section><div class="sec-h"><h2>Cette semaine au Market</h2>' + ((recents || []).length > 2 ? '<span class="sn"><button type="button" class="sn-b" data-sn="-1" aria-label="Annonces précédentes"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M164.24,203.76a6,6,0,1,1-8.48,8.48l-80-80a6,6,0,0,1,0-8.48l80-80a6,6,0,0,1,8.48,8.48L88.49,128Z"/></svg></button><button type="button" class="sn-b" data-sn="1" aria-label="Annonces suivantes"><svg class="pi" viewBox="0 0 256 256" aria-hidden="true"><path d="M180.24,132.24l-80,80a6,6,0,0,1-8.48-8.48L167.51,128,91.76,52.24a6,6,0,0,1,8.48-8.48l80,80A6,6,0,0,1,180.24,132.24Z"/></svg></button></span>' : '') + '<a href="#/market">Tout voir</a></div>'
     + ((recents || []).length ? '<div class="strip defile">' + recents.map((a, i) => '<a class="mini" href="#/annonce/' + a.id + '"><div class="ph" style="background-image:url(\'' + esc(urls[i]) + '\')"></div><div class="t">' + esc(casse(a.titre)) + '</div><div class="p">' + prix(a) + '</div></a>').join('') + '</div>'
       : '<div class="card muted">Aucune annonce pour le moment. <a href="#/publier">Publier la première</a></div>')

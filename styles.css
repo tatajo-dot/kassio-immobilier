@@ -1801,3 +1801,69 @@ h1.adm-h{font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.06em
 
 /* Kassio Immobilier : les vidéos tutoriels d'installation (propres à ADRESS CLUB) sont à refaire — masquées en attendant */
 .tuto-box,.tuto-grid{display:none}
+
+/* ---------- Biens immobiliers ---------- */
+.bi-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.bi-h h1{margin-bottom:2px}
+.bi-ph{aspect-ratio:4/3}
+.bi-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.bi-ph::after{display:none}
+.bi-vide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted);text-align:center;padding:8px}
+.bi-vide span{font-weight:700;font-size:13px;color:var(--ink-2)}
+.bi-vide small{font-size:11.5px}
+.bi-grand{aspect-ratio:16/10;max-height:420px}
+.bien-c .bd .p{margin-top:0}
+.bien-c .bd .t{margin-top:2px}
+.bi-meta{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.bi-meta .badge{font-size:10.5px;padding:2px 6px}
+.bi-filtres{margin:0 0 18px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px 14px}
+.bi-filtres summary{cursor:pointer;font-weight:600;font-size:14px}
+.bi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.bi-grid label{margin-top:12px}
+.bi-act{grid-column:1/-1;display:flex;gap:8px;margin-top:14px}
+@media (min-width:900px){.bi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.bi-desc{white-space:pre-line;line-height:1.55;margin:12px 0}
+.bi-eq{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.bi-eq .check{margin:6px 0;font-size:14px}
+.bi-pro{border:1px solid var(--line);border-radius:var(--r);padding:4px 14px 12px;margin:14px 0}
+.bi-pro legend{font-weight:700;font-size:13px;padding:0 6px}
+.bi-line{display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;color:inherit;margin-bottom:10px}
+.bi-acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.err-t{color:var(--danger)}
+.fav-inline{position:static;display:inline-flex;align-items:center;gap:6px;width:auto;height:auto;border-radius:8px;border:1px solid var(--line-2);padding:7px 12px;margin-top:14px;font-weight:600;font-size:13px}
+.fav-inline svg{width:16px;height:16px}
+.fav-inline.on{color:var(--red);border-color:var(--red)}
+
+/* ---------- Espace KASSIO : immobilier ---------- */
+.adm-g{grid-template-columns:repeat(6,minmax(max-content,1fr));max-width:820px}
+.at-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:12px}
+.at-i{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);text-decoration:none;color:var(--ink);background:var(--surface)}
+.at-i:hover{border-color:var(--ink)}
+.at-i .at-n{font-size:24px;font-weight:800;line-height:1.1;color:var(--muted)}
+.at-i.chaud .at-n{color:var(--red)}
+.at-i small{color:var(--muted);font-size:12px}
+.pipe{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:6px 0 4px}
+.pipe a{flex:1 0 auto;min-width:96px;display:flex;flex-direction:column;align-items:center;padding:8px 10px;border-radius:10px;background:var(--sunken);text-decoration:none;color:var(--ink-2);font-size:12px;font-weight:600}
+.pipe a em{font-style:normal;font-size:18px;font-weight:800;color:var(--ink)}
+.chip em{font-style:normal;opacity:.7;margin-left:3px}
+.dm-lay{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:1000px){.dm-lay{grid-template-columns:minmax(300px,420px) 1fr;align-items:start}.dm-fiche{position:sticky;top:76px}}
+.dm-list{display:flex;flex-direction:column;gap:8px}
+.dm-r{display:block;text-decoration:none;color:inherit;padding:12px 14px}
+.dm-r.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.dm-r.retard{border-left:3px solid var(--red)}
+.dm-1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dm-1 h2{margin:0}
+.dm-msg{margin:10px 0;padding:10px 12px;background:var(--sunken);border-radius:10px;white-space:pre-line}
+.dm-bien{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:10px 0}
+.dm-ct{margin-top:8px;font-size:14px}
+.dm-h{display:flex;flex-direction:column;gap:10px;font-size:14px}
+.dm-h>div{border-left:2px solid var(--line);padding-left:10px}
+.dm-w{padding:8px 0;border-bottom:1px solid var(--line)}
+@media (max-width:999px){.dm-lay.ouvert .dm-fiche{order:-1}}
+.val-r{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:760px){.val-r{grid-template-columns:240px 1fr}}
+.val-ph{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;align-content:start}
+.val-ph img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}
+.val-d{color:var(--ink-2);margin:8px 0}
+.acc-biens .strip .mini .ph{background-color:var(--sunken)}
